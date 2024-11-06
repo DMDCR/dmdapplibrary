@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Library</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            width: 100vw;
+            height: 100vh;
+            background: url('default-background.jpg') no-repeat center center;
+            background-size: cover;
+            position: relative;
+            color: #333;
+            backdrop-filter: blur(10px) brightness(0.8);
+        }
+        #overlay {
+            background: rgba(255, 255, 255, 0.8);
+            position: absolute;
+            inset: 0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            padding: 1.5rem 2rem;
+            font-size: 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(240, 240, 240, 0.9);
+        }
+        main {
+            flex: 1;
+            padding: 1rem;
+            display: grid;
+            grid-template-columns: repeat(5, 1fr); /* Fixed 5 columns */
+            gap: 1rem; /* Space between cards */
+            overflow-y: auto;
+        }
+        /* App Card */
+        .app-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.2s ease;
+        }
+        .app-card:hover {
+            transform: translateY(-3px);
+        }
+        .app-card img {
+            width: 100px; /* Fixed width for square image */
+            height: 100px; /* Fixed height for square image */
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .app-card h3 {
+            font-size: 0.9rem;
+            color: #333;
+            margin: 0.5rem 0;
+        }
+        .app-card button {
+            padding: 0.5rem 1rem;
+            font-size: 0.8rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            width: 80%;
+            transition: background-color 0.3s, color 0.3s;
+            outline: none;
+        }
+        .launch-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .launch-button:hover {
+            background-color: #45a049;
+        }
+        .customize-button {
+            background-color: #007BFF;
+            color: white;
+        }
+        .customize-button:hover {
+            background-color: #0056b3;
+        }
+        .export-button {
+            background-color: #FFC107;
+            color: #333;
+        }
+        .export-button:hover {
+            background-color: #e0a800;
+        }
+        .import-button {
+            background-color: #6c757d;
+            color: white;
+        }
+        .import-button:hover {
+            background-color: #5a6268;
+        }
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            width: 320px;
+            text-align: center;
+            position: relative;
+        }
+        .close-button {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div id="overlay">
+            <header>
+                <div> </div>
+                <div>
+                    <button id="add-app-button">Add App</button>
+                    <button id="export-button" class="export-button">Export</button>
+                    <button id="import-button" class="import-button">Import</button>
+                </div>
+            </header>
+
+            <main id="app-list">
+                <!-- App cards will be dynamically added here -->
+            </main>
+        </div>
+
+        <!-- Modal for Adding Apps -->
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button">&times;</span>
+                <h2>Add a New App</h2>
+                <form id="app-form">
+                    <input type="text" id="app-name" placeholder="App Name" required>
+                    <label for="app-path">Choose App (.exe or .lnk):</label>
+                    <input type="file" id="app-path" accept=".exe,.lnk" required>
+                    <label for="cover-art">Choose Cover Art (optional):</label>
+                    <input type="file" id="cover-art" accept="image/*">
+                    <button type="submit">Save</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Modal for Customizing Apps -->
+        <div id="customize-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-button" id="close-customize">&times;</span>
+                <h2>Customize App</h2>
+                <form id="customize-form">
+                    <label for="customize-app-name">App Name:</label>
+                    <input type="text" id="customize-app-name" required>
+                    <label for="customize-cover-art">Change Cover Art:</label>
+                    <input type="file" id="customize-cover-art" accept="image/*">
+                    <button type="button" id="delete-app-button">Delete App</button>
+                    <button type="submit">Save Changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAppName = '';
+
+        document.getElementById('add-app-button').onclick = () => {
+            document.getElementById('modal').style.display = 'flex';
+        };
+
+        document.getElementById('export-button').onclick = () => {
+            const apps = getAppsFromStorage();
+            const blob = new Blob([JSON.stringify(apps)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'apps.lib';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        document.getElementById('import-button').onclick = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.lib';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    const apps = JSON.parse(event.target.result);
+                    apps.forEach(app => addApp(app));
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        };
+
+        document.querySelectorAll('.close-button').forEach(button => {
+            button.onclick = () => {
+                button.closest('.modal').style.display = 'none';
+            };
+        });
+
+        const appList = document.getElementById('app-list');
+        const appForm = document.getElementById('app-form');
+        const customizeForm = document.getElementById('customize-form');
+
+        appForm.onsubmit = (e) => {
+            e.preventDefault();
+            const appName = document.getElementById('app-name').value;
+            const appPath = document.getElementById('app-path').files[0];
+            const coverArt = document.getElementById('cover-art').files[0];
+
+            if (appName && appPath) {
+                const existingApps = getAppsFromStorage();
+                if (existingApps.some(app => app.name === appName)) {
+                    alert("App with this name already exists.");
+                    return; // Prevent duplication
+                }
+
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const app = {
+                        name: appName,
+                        path: appPath.name,
+                        cover: reader.result || 'data:image/png;base64,default-cover-base64' // Default cover
+                    };
+                    addApp(app);
+                    saveAppToStorage(app);
+                    document.getElementById('modal').style.display = 'none';
+                    appForm.reset();
+                };
+
+                if (coverArt) {
+                    const coverReader = new FileReader();
+                    coverReader.onloadend = () => {
+                        reader.result = coverReader.result;
+                        reader.onloadend();
+                    };
+                    coverReader.readAsDataURL(coverArt);
+                } else {
+                    reader.readAsDataURL(appPath);
+                }
+            }
+        };
+
+        function addApp(app) {
+            const appCard = document.createElement('div');
+            appCard.className = 'app-card';
+            appCard.innerHTML = `
+                <img src="${app.cover}" alt="Cover Art">
+                <h3>${app.name}</h3>
+                <button class="launch-button" onclick="launchApp('${app.path}')">Launch</button>
+                <button class="customize-button" onclick="openCustomizeModal('${app.name}')">Customize</button>
+            `;
+            appList.appendChild(appCard);
+        }
+
+        function saveAppToStorage(app) {
+            const apps = getAppsFromStorage();
+            apps.push(app);
+            localStorage.setItem('apps', JSON.stringify(apps));
+        }
+
+        function getAppsFromStorage() {
+            return JSON.parse(localStorage.getItem('apps')) || [];
+        }
+
+        function launchApp(path) {
+            console.log(`Launching ${path}`);
+            // This would normally launch the app; use window.open or similar for web apps.
+        }
+
+        function openCustomizeModal(appName) {
+            currentAppName = appName;
+            const apps = getAppsFromStorage();
+            const app = apps.find(a => a.name === appName);
+            if (app) {
+                document.getElementById('customize-app-name').value = app.name;
+                document.getElementById('customize-modal').style.display = 'flex';
+            }
+        }
+
+        customizeForm.onsubmit = (e) => {
+            e.preventDefault();
+            const newAppName = document.getElementById('customize-app-name').value;
+            const apps = getAppsFromStorage();
+            apps.forEach((app, index) => {
+                if (app.name === currentAppName) {
+                    app.name = newAppName;
+                    const coverArt = document.getElementById('customize-cover-art').files[0];
+                    if (coverArt) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            app.cover = reader.result;
+                            apps[index] = app;
+                            localStorage.setItem('apps', JSON.stringify(apps));
+                            updateAppCards();
+                            document.getElementById('customize-modal').style.display = 'none';
+                        };
+                        reader.readAsDataURL(coverArt);
+                    } else {
+                        apps[index] = app; // Save other changes
+                        localStorage.setItem('apps', JSON.stringify(apps));
+                        updateAppCards();
+                        document.getElementById('customize-modal').style.display = 'none';
+                    }
+                }
+            });
+        };
+
+        document.getElementById('delete-app-button').onclick = () => {
+            const apps = getAppsFromStorage();
+            const updatedApps = apps.filter(app => app.name !== currentAppName);
+            localStorage.setItem('apps', JSON.stringify(updatedApps));
+            updateAppCards();
+            document.getElementById('customize-modal').style.display = 'none';
+        };
+
+        function updateAppCards() {
+            appList.innerHTML = '';
+            const apps = getAppsFromStorage();
+            apps.forEach(app => addApp(app));
+        }
+
+        // Load apps on page load
+        window.onload = updateAppCards;
+    </script>
+</body>
+</html>
